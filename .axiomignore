@@ -1,0 +1,4 @@
+config.bin
+build.zig
+.zig-cache
+zig-out

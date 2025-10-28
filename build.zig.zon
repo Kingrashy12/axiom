@@ -1,0 +1,22 @@
+.{
+    .name = .axiom,
+
+    .version = "0.0.1",
+
+    .fingerprint = 0x5a9bbbb1d8c02b1e,
+
+    .dependencies = .{
+        .ziglet = .{
+            .url = "git+https://github.com/Kingrashy12/ziglet#2090002ed986a9c9852c9a80294715efa5268816",
+            .hash = "ziglet-0.2.1-ik-x8hHcAAAo_HqO8gjBnDIYv1glFQ5zQ543bAlGmECk",
+        },
+    },
+
+    .description = "",
+
+    .paths = .{
+        "src",
+        "LICENSE",
+        "README.md",
+    },
+}
