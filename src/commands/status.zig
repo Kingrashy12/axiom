@@ -16,9 +16,6 @@ pub fn status(param: ActionArg) !void {
     defer allocator.destroy(manifest_data);
     defer manifest_data.deinit(allocator);
 
-    var files: std.ArrayList([]const u8) = .empty;
-    defer files.deinit(allocator);
-
     const current_files = try fs_utils.collectFiles(allocator);
     defer allocator.free(current_files);
 
