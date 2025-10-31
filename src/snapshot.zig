@@ -2,16 +2,16 @@ const std = @import("std");
 const ziglet = @import("ziglet");
 const utils = @import("utils");
 
-const FileEntry = struct {
+pub const FileEntry = struct {
     path: []const u8,
     hash: []const u8,
 };
 
-const Manifest = struct {
+pub const Manifest = struct {
     message: []const u8,
     timestamp: i64,
-    parent: ?[]const u8,
-    files: std.StringHashMap([]const u8),
+    hash: []const u8,
+    files: []FileEntry,
 };
 
 pub fn collectEntry(

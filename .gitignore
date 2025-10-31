@@ -7,3 +7,5 @@ zig-out
 NOTE.md
 README.md
 *.prev
+convert.zig
+INFO

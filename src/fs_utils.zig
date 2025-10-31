@@ -125,10 +125,6 @@ pub fn collectFiles(allocator: std.mem.Allocator) ![][]const u8 {
         allocator.free(ignore_paths);
     }
 
-    for (files.items) |value| {
-        defer allocator.free(value);
-    }
-
     try walkFiles(allocator, &dir, "", &files, ignore_paths);
 
     const output_files = try replaceBackslashWithForwardSlash(allocator, files.items);

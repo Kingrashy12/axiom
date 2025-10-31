@@ -50,3 +50,15 @@ pub fn hash_file_hex(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
     const hex = try hex_encode_alloc(allocator, digest[0..]);
     return hex;
 }
+
+pub fn hash_hex_short(allocator: std.mem.Allocator, data: []const u8) ![]u8 {
+    var hasher = std.crypto.hash.Blake3.init(.{});
+    var buf: [1024]u8 = undefined;
+
+    hasher.update(buf[0..data.len]);
+
+    var digest: [5]u8 = undefined;
+    hasher.final(&digest);
+
+    return try hex_encode_alloc(allocator, digest[0..]);
+}
