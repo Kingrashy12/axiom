@@ -35,6 +35,15 @@ pub fn initRepo() !void {
 
     try repo_dir.makeDir("objects");
     try repo_dir.makeDir("snapshots");
+    var info_file = try repo_dir.createFile("INFO", .{});
+
+    const info_data =
+        \\ TOTAL_SNAP = 0
+        \\ CURRENT_SNAP_HASH = 0
+        \\ CURRENT_TIMELINE = main
+    ;
+
+    try info_file.writeAll(info_data);
 
     try writeConfig(null, null);
 
