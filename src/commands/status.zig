@@ -3,6 +3,7 @@ const Allocator = std.mem.Allocator;
 const ziglet = @import("ziglet");
 const ActionArg = ziglet.ActionArg;
 const repo_mod = @import("../repo.zig");
+const fs = @import("../core/fs.zig");
 const printColored = ziglet.utils.terminal.printColored;
 
 const status_rt = @import("../runtime/status.zig");
@@ -13,7 +14,7 @@ pub fn status(param: ActionArg) !void {
     var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
 
-    repo_mod.ensureRepo();
+    fs.ensureRepo();
 
     const info = try repo_mod.readInfo(allocator, true);
 

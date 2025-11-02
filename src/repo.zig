@@ -80,14 +80,6 @@ pub fn readInfo(allocator: Allocator, dupe_hash: bool) !*Info {
     return info;
 }
 
-pub fn ensureRepo() void {
-    var dir = std.fs.cwd();
-
-    if (!pathExists(&dir, ".axiom")) {
-        printColored(.blue, "No Axiom repository found. Please run 'axiom init' to create a new repository.", .{});
-    }
-}
-
 pub fn updateInfo(allocator: Allocator, new_info: Info) !void {
     var repo_dir = try std.fs.cwd().openDir(".axiom", .{});
     defer repo_dir.close();

@@ -1,4 +1,5 @@
 const std = @import("std");
+const ziglet = @import("ziglet");
 const Allocator = std.mem.Allocator;
 
 pub fn readIgnoreFile(
@@ -135,4 +136,12 @@ pub fn collectFiles(allocator: Allocator) ![][]const u8 {
 pub fn pathExists(dir: *std.fs.Dir, path: []const u8) bool {
     dir.access(path, .{}) catch return false;
     return true;
+}
+
+pub fn ensureRepo() void {
+    var dir = std.fs.cwd();
+
+    if (!pathExists(&dir, ".axiom")) {
+        ziglet.utils.terminal.printColored(.blue, "No Axiom repository found. Please run 'axiom init' to create a new repository.", .{});
+    }
 }

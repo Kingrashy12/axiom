@@ -10,6 +10,7 @@ pub fn init(params: ActionArg) !void {
     _ = params;
 
     var dir = std.fs.cwd();
+
     if (fs.pathExists(&dir, ".axiom")) {
         printColored(.yellow, "Axiom repository already exists!\n", .{});
         return;

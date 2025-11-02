@@ -22,7 +22,7 @@ pub fn snapshot(param: ActionArg) !void {
         message = ziglet.CLIUtils.takeString(m);
     }
 
-    repo_mod.ensureRepo();
+    fs.ensureRepo();
 
     const info = try repo_mod.readInfo(allocator, true);
 

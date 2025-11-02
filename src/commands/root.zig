@@ -1,5 +1,4 @@
 pub const initCommand = @import("init.zig").init;
-pub const addCommand = @import("add.zig").add;
 pub const config = @import("config.zig").config;
 pub const log = @import("log.zig").log;
 pub const restore = @import("restore.zig").restore;
