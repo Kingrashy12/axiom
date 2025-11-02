@@ -1,10 +1,11 @@
 const std = @import("std");
 const ziglet = @import("ziglet");
-const utils = @import("utils");
 const ActionArg = ziglet.ActionArg;
-const fs_utils = @import("../fs_utils.zig");
+const hash = @import("../core/hash.zig");
+const fs = @import("../core/fs.zig");
 const repo_mod = @import("../repo.zig");
-const snapshot_mod = @import("../snapshot.zig");
+const snapshot_mod = @import("../runtime/snapshot.zig");
+const status_rt = @import("../runtime/status.zig");
 const FileEntry = snapshot_mod.FileEntry;
 const collectEntry = snapshot_mod.collectEntry;
 const printColored = ziglet.utils.terminal.printColored;
@@ -12,7 +13,10 @@ const printColored = ziglet.utils.terminal.printColored;
 pub fn snapshot(param: ActionArg) !void {
     const allocator = param.allocator;
 
-    var message: []const u8 = "(unset)";
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+
+    var message: []const u8 = "(no message)";
 
     if (param.options.get("message")) |m| {
         message = ziglet.CLIUtils.takeString(m);
@@ -20,10 +24,29 @@ pub fn snapshot(param: ActionArg) !void {
 
     repo_mod.ensureRepo();
 
+    const info = try repo_mod.readInfo(allocator, true);
+
+    if (try status_rt.checkStatus(arena.allocator(), allocator, info.CURRENT_SNAPSHOT_HASH, false) == 0) {
+        printColored(.blue, "Working tree clean. No snapshot saved.\n", .{});
+
+        defer {
+            for (info.SNAPSHOTS) |value| {
+                defer allocator.free(value);
+            }
+            allocator.free(info.SNAPSHOTS);
+            allocator.free(info.CURRENT_SNAPSHOT_HASH);
+            allocator.free(info.CURRENT_TIMELINE);
+            allocator.free(info.PREVIOUS_SNAPSHOT_HASH);
+            allocator.destroy(info);
+        }
+
+        return;
+    }
+
     var dir = try std.fs.cwd().openDir("", .{ .iterate = true });
     defer dir.close();
 
-    const current_files = try fs_utils.collectFiles(allocator);
+    const current_files = try fs.collectFiles(allocator);
     defer allocator.free(current_files);
 
     const entries = try collectEntry(allocator, current_files);
@@ -32,8 +55,8 @@ pub fn snapshot(param: ActionArg) !void {
     const hash_key = try std.fmt.allocPrint(allocator, "{s}::{d}", .{ message, std.time.timestamp() });
     defer allocator.free(hash_key);
 
-    const snap_hash = try utils.hash_hex_short(allocator, hash_key);
-    defer allocator.free(snap_hash);
+    const snap_hash = try hash.hash_hex_short(allocator, hash_key);
+    // defer allocator.free(snap_hash);
 
     const obj_path = try std.fmt.allocPrint(allocator, ".axiom/objects/{s}", .{snap_hash});
     defer allocator.free(obj_path);
@@ -65,7 +88,7 @@ pub fn snapshot(param: ActionArg) !void {
         defer allocator.free(file_data);
 
         // If object does not exits create it
-        if (!utils.pathExists(&dir, entry_path)) {
+        if (!fs.pathExists(&dir, entry_path)) {
             var obj_file = try dir.createFile(entry_path, .{});
             defer obj_file.close();
 
@@ -111,21 +134,27 @@ pub fn snapshot(param: ActionArg) !void {
 
     try manifest_file.writeAll("] }");
 
-    const info = try repo_mod.readInfo(allocator, false);
-    defer {
-        // allocator.free(info.CURRENT_SNAPSHOT_HASH);
-        allocator.free(info.CURRENT_TIMELINE);
-        allocator.destroy(info);
-    }
+    allocator.free(info.PREVIOUS_SNAPSHOT_HASH);
+
+    const current_hash = try allocator.dupe(u8, info.CURRENT_SNAPSHOT_HASH);
+    defer allocator.free(current_hash);
+
+    allocator.free(info.CURRENT_SNAPSHOT_HASH);
 
     info.TOTAL_SNAPSHOTS += 1;
+    info.PREVIOUS_SNAPSHOT_HASH = current_hash;
     info.CURRENT_SNAPSHOT_HASH = snap_hash;
 
     try repo_mod.updateInfo(allocator, info.*);
 
-    // std.debug.print("Hash: {s}\nTotal: {d}\n", .{ info.CURRENT_SNAPSHOT_HASH, info.TOTAL_SNAPSHOTS });
+    defer {
+        allocator.free(info.CURRENT_SNAPSHOT_HASH);
+        allocator.free(info.CURRENT_TIMELINE);
+        allocator.free(info.SNAPSHOTS);
+        allocator.destroy(info);
+    }
 
-    printColored(.green, "Created new snapshot: {s}", .{snap_hash});
+    printColored(.green, "Created snapshot: [{s}] {s}\n", .{ snap_hash, message });
 }
 
 fn freeEntries(allocator: std.mem.Allocator, entries: []snapshot_mod.FileEntry) void {

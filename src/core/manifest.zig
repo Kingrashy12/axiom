@@ -1,7 +1,8 @@
 const std = @import("std");
-const types = @import("types.zig");
+const types = @import("../types.zig");
 const ziglet = @import("ziglet");
 const Allocator = std.mem.Allocator;
+const errors = @import("errors.zig").Errors;
 
 pub const Manifest = struct {
     message: []const u8,
@@ -24,8 +25,15 @@ pub fn loadSnapshotManifest(arena: Allocator, allocator_default: Allocator, curr
     const snapshot_path = try std.fmt.allocPrint(arena, ".axiom/snapshots/{s}/manifest.json", .{current_snap_hash});
 
     var file = cwd.openFile(snapshot_path, .{}) catch |err| {
-        ziglet.utils.terminal.printError("Failed to open manifest file: {s}", .{@errorName(err)});
-        std.process.exit(1);
+        switch (err) {
+            error.FileNotFound => {
+                return errors.ManifestNotFound;
+            },
+            else => {
+                ziglet.utils.terminal.printError("Failed to open manifest file: {s}", .{@errorName(err)});
+                std.process.exit(1);
+            },
+        }
     };
     defer file.close();
 

@@ -1,7 +1,7 @@
 const std = @import("std");
 const manifest_mod = @import("manifest.zig");
 const Allocator = std.mem.Allocator;
-const utils = @import("utils");
+const hash = @import("hash.zig");
 
 pub const DiffChange = enum {
     Added,
@@ -35,7 +35,6 @@ pub fn diff(
     allocator: Allocator,
     manifest: *const manifest_mod.Manifest,
     current_files: [][]const u8, // paths only
-    // hashLookup: fn ([]const u8) []const u8, // external hashing fn
 ) !DiffResult {
     var result = DiffResult.init(allocator);
 
@@ -47,7 +46,7 @@ pub fn diff(
             if (std.mem.eql(u8, m.path, path)) {
                 is_known = true;
 
-                const new_hash = try utils.hash_file_hex(allocator, path);
+                const new_hash = try hash.hash_file_hex(allocator, path);
                 defer allocator.free(new_hash);
                 if (!std.mem.eql(u8, new_hash, m.hash)) {
                     try result.modified.append(allocator, path);
@@ -78,10 +77,4 @@ pub fn diff(
     }
 
     return result;
-}
-
-pub fn hashLookup(path: []const u8) []const u8 {
-    _ = path;
-    // dummy implementation
-    return "dummy_hash";
 }

@@ -1,4 +1,5 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 pub fn readIgnoreFile(
     allocator: std.mem.Allocator,
@@ -31,7 +32,7 @@ pub fn readIgnoreFile(
     return list.toOwnedSlice(allocator);
 }
 
-pub fn replaceBackslashWithForwardSlash(allocator: std.mem.Allocator, input: [][]const u8) ![][]const u8 {
+pub fn replaceBackslashWithForwardSlash(allocator: Allocator, input: [][]const u8) ![][]const u8 {
     var output: std.ArrayList([]const u8) = .empty;
 
     var i: usize = 0;
@@ -64,7 +65,7 @@ pub fn shouldIgnore(path: []const u8, patterns: [][]const u8) bool {
 }
 
 pub fn walkFiles(
-    allocator: std.mem.Allocator,
+    allocator: Allocator,
     dir: *std.fs.Dir,
     base_path: []const u8,
     files: *std.ArrayList([]const u8),
@@ -110,7 +111,7 @@ pub fn walkFiles(
     }
 }
 
-pub fn collectFiles(allocator: std.mem.Allocator) ![][]const u8 {
+pub fn collectFiles(allocator: Allocator) ![][]const u8 {
     var files: std.ArrayList([]const u8) = .empty;
     defer files.deinit(allocator);
 
@@ -129,4 +130,9 @@ pub fn collectFiles(allocator: std.mem.Allocator) ![][]const u8 {
 
     const output_files = try replaceBackslashWithForwardSlash(allocator, files.items);
     return output_files;
+}
+
+pub fn pathExists(dir: *std.fs.Dir, path: []const u8) bool {
+    dir.access(path, .{}) catch return false;
+    return true;
 }

@@ -8,11 +8,6 @@ pub fn fromHex(c: u8) ?u8 {
     return null;
 }
 
-pub fn pathExists(dir: *std.fs.Dir, path: []const u8) bool {
-    dir.access(path, .{}) catch return false;
-    return true;
-}
-
 pub fn hex_encode_alloc(allocator: std.mem.Allocator, bytes: []const u8) ![]u8 {
     const hex_len = bytes.len * 2;
     const out = try allocator.alloc(u8, hex_len);

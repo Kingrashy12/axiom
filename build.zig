@@ -33,9 +33,6 @@ pub fn build(b: *std.Build) void {
         .target = target,
     });
 
-    const utils_mod = b.addModule("utils", .{ .target = target, .root_source_file = b.path("src/utils.zig") });
-    const object_mod = b.addModule("utils", .{ .target = target, .root_source_file = b.path("src/object.zig") });
-
     // Add the ziglet dependency
     const ziglet_dep = b.dependency("ziglet", .{});
 
@@ -56,9 +53,6 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.root_module.addImport("ziglet", ziglet_dep.module("ziglet"));
-    exe.root_module.addImport("utils", utils_mod);
-    exe.root_module.addImport("object", object_mod);
-    object_mod.addImport("utils", utils_mod);
 
     // This declares intent for the executable to be installed into the
     // install prefix when running `zig build` (i.e. when executing the default
