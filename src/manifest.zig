@@ -4,8 +4,10 @@ const ziglet = @import("ziglet");
 const Allocator = std.mem.Allocator;
 
 pub const Manifest = struct {
+    message: []const u8,
     timestamp: i64,
-    files: []types.SnapshotFile,
+    hash: []const u8,
+    files: []types.FileEntry,
 
     pub fn deinit(self: *Manifest, allocator: std.mem.Allocator) void {
         for (self.files) |file| {
@@ -16,10 +18,12 @@ pub const Manifest = struct {
     }
 };
 
-pub fn loadSnapshotManifest(arena: Allocator, allocator_default: Allocator) !*Manifest {
+pub fn loadSnapshotManifest(arena: Allocator, allocator_default: Allocator, current_snap_hash: []const u8) !*Manifest {
     var cwd = std.fs.cwd();
 
-    var file = cwd.openFile(".axiom/snapshots/manifest.json", .{}) catch |err| {
+    const snapshot_path = try std.fmt.allocPrint(arena, ".axiom/snapshots/{s}/manifest.json", .{current_snap_hash});
+
+    var file = cwd.openFile(snapshot_path, .{}) catch |err| {
         ziglet.utils.terminal.printError("Failed to open manifest file: {s}", .{@errorName(err)});
         std.process.exit(1);
     };
@@ -32,11 +36,9 @@ pub fn loadSnapshotManifest(arena: Allocator, allocator_default: Allocator) !*Ma
         std.process.exit(1);
     };
 
-    defer arena.free(buffer);
-
     _ = try file.readAll(buffer);
 
-    const parsed = std.json.parseFromSliceLeaky(types.Snapshot, arena, buffer, .{ .allocate = .alloc_if_needed }) catch |err| {
+    const parsed = std.json.parseFromSliceLeaky(Manifest, arena, buffer, .{ .allocate = .alloc_if_needed }) catch |err| {
         ziglet.utils.terminal.printError("Failed to parse manifest JSON: {s}", .{@errorName(err)});
         return err;
     };
@@ -47,11 +49,13 @@ pub fn loadSnapshotManifest(arena: Allocator, allocator_default: Allocator) !*Ma
     };
 
     allocated_snapshot.*.timestamp = parsed.timestamp;
+    allocated_snapshot.*.hash = current_snap_hash;
+    allocated_snapshot.*.message = try arena.dupe(u8, parsed.message);
 
-    var files_array = try allocator_default.alloc(types.SnapshotFile, parsed.files.len);
+    var files_array = try allocator_default.alloc(types.FileEntry, parsed.files.len);
 
     for (parsed.files, 0..) |f, idx| {
-        files_array[idx] = types.SnapshotFile{
+        files_array[idx] = types.FileEntry{
             .path = try allocator_default.dupe(u8, f.path),
             .hash = try allocator_default.dupe(u8, f.hash),
         };

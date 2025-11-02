@@ -1,4 +1,5 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 const ziglet = @import("ziglet");
 const printColored = ziglet.utils.terminal.printColored;
 
@@ -38,9 +39,10 @@ pub fn initRepo() !void {
     var info_file = try repo_dir.createFile("INFO", .{});
 
     const info_data =
-        \\ TOTAL_SNAP = 0
-        \\ CURRENT_SNAP_HASH = 0
-        \\ CURRENT_TIMELINE = main
+        \\TOTAL_SNAPSHOTS = 0
+        \\CURRENT_SNAPSHOT_HASH = EMPTY
+        \\SNAPSHOTS_ORDER = EMPTY
+        \\CURRENT_TIMELINE = main
     ;
 
     try info_file.writeAll(info_data);
@@ -101,7 +103,7 @@ fn trimField(field: []const u8) ?[]const u8 {
     return field[0..end];
 }
 
-pub fn deleteRepo(allocator: std.mem.Allocator) !void {
+pub fn deleteRepo(allocator: Allocator) !void {
     var dir = std.fs.cwd();
 
     if (!repoExists(&dir)) {
@@ -127,4 +129,92 @@ pub fn deleteRepo(allocator: std.mem.Allocator) !void {
         return;
     };
     printColored(.green, "\nAxiom repository deleted successfully.\n", .{});
+}
+
+const Info = struct {
+    TOTAL_SNAPSHOTS: usize,
+    SNAPSHOTS_ORDER: [][]const u8,
+    CURRENT_SNAPSHOT_HASH: []const u8,
+    CURRENT_TIMELINE: []const u8,
+};
+
+pub fn readInfo(allocator: Allocator, dupe_hash: bool) !*Info {
+    var dir = std.fs.cwd();
+    var info_file = dir.openFile(".axiom/INFO", .{}) catch |err| {
+        printColored(.red, "Error reading file: {s}\n", .{@errorName(err)});
+        std.process.exit(1);
+    };
+    defer info_file.close();
+
+    const size = try info_file.getEndPos();
+
+    const buffer = try allocator.alloc(u8, size);
+    defer allocator.free(buffer);
+
+    _ = try info_file.readAll(buffer);
+
+    var iter = std.mem.splitScalar(u8, buffer, '\n');
+
+    const info = try allocator.create(Info);
+
+    while (iter.next()) |line| {
+        const trimmed = std.mem.trim(u8, line, &std.ascii.whitespace);
+
+        if (std.mem.indexOf(u8, trimmed, "=") == null) {
+            printColored(.red, "Error: Invalid INFO file.", .{});
+            std.process.exit(1);
+        }
+
+        var parts = std.mem.tokenizeAny(u8, trimmed, " = ");
+
+        const name = parts.next().?;
+        const value = parts.next().?;
+
+        if (std.mem.eql(u8, name, "TOTAL_SNAPSHOTS")) {
+            info.TOTAL_SNAPSHOTS = std.fmt.parseInt(usize, value, 10) catch 0;
+        }
+
+        if (std.mem.eql(u8, name, "CURRENT_SNAPSHOT_HASH")) {
+            info.CURRENT_SNAPSHOT_HASH = if (dupe_hash) try allocator.dupe(u8, value) else value;
+        }
+
+        if (std.mem.eql(u8, name, "SNAPSHOTS_ORDER")) {
+            info.SNAPSHOTS_ORDER = &.{}; // parse 0x98ud0, 10927cd0, 0cd345h0 into {0x98ud0, 10927cd0, 0cd345h0}
+        }
+
+        if (std.mem.eql(u8, name, "CURRENT_TIMELINE")) {
+            info.CURRENT_TIMELINE = try allocator.dupe(u8, value);
+        }
+    }
+
+    return info;
+}
+
+pub fn ensureRepo() void {
+    var dir = std.fs.cwd();
+
+    if (!pathExists(&dir, ".axiom")) {
+        printColored(.cyan, "No Axiom repository found. Please run 'axiom init' to create a new repository.", .{});
+    }
+}
+
+pub fn updateInfo(allocator: Allocator, new_info: Info) !void {
+    var repo_dir = try std.fs.cwd().openDir(".axiom", .{});
+    defer repo_dir.close();
+
+    var info_file = repo_dir.openFile("INFO", .{ .mode = .read_write }) catch |err| {
+        printColored(.red, "Error reading file: {s}\n", .{@errorName(err)});
+        std.process.exit(1);
+    };
+    defer info_file.close();
+
+    const info_data = try std.fmt.allocPrint(allocator,
+        \\TOTAL_SNAPSHOTS = {d}
+        \\CURRENT_SNAPSHOT_HASH = {s}
+        \\SNAPSHOTS_ORDER = EMPTY
+        \\CURRENT_TIMELINE = {s}
+    , .{ new_info.TOTAL_SNAPSHOTS, new_info.CURRENT_SNAPSHOT_HASH, new_info.CURRENT_TIMELINE });
+    defer allocator.free(info_data);
+
+    try info_file.writeAll(info_data);
 }

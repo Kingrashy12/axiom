@@ -3,6 +3,7 @@ const ziglet = @import("ziglet");
 const utils = @import("utils");
 const ActionArg = ziglet.ActionArg;
 const fs_utils = @import("../fs_utils.zig");
+const repo_mod = @import("../repo.zig");
 const snapshot_mod = @import("../snapshot.zig");
 const FileEntry = snapshot_mod.FileEntry;
 const collectEntry = snapshot_mod.collectEntry;
@@ -16,6 +17,8 @@ pub fn snapshot(param: ActionArg) !void {
     if (param.options.get("message")) |m| {
         message = ziglet.CLIUtils.takeString(m);
     }
+
+    repo_mod.ensureRepo();
 
     var dir = try std.fs.cwd().openDir("", .{ .iterate = true });
     defer dir.close();
@@ -107,6 +110,20 @@ pub fn snapshot(param: ActionArg) !void {
     }
 
     try manifest_file.writeAll("] }");
+
+    const info = try repo_mod.readInfo(allocator, false);
+    defer {
+        // allocator.free(info.CURRENT_SNAPSHOT_HASH);
+        allocator.free(info.CURRENT_TIMELINE);
+        allocator.destroy(info);
+    }
+
+    info.TOTAL_SNAPSHOTS += 1;
+    info.CURRENT_SNAPSHOT_HASH = snap_hash;
+
+    try repo_mod.updateInfo(allocator, info.*);
+
+    // std.debug.print("Hash: {s}\nTotal: {d}\n", .{ info.CURRENT_SNAPSHOT_HASH, info.TOTAL_SNAPSHOTS });
 
     printColored(.green, "Created new snapshot: {s}", .{snap_hash});
 }
