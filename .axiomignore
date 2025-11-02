@@ -3,3 +3,4 @@ build.zig
 .zig-cache
 zig-out
 .git
+__tests__

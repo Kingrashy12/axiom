@@ -66,7 +66,9 @@ pub fn readInfo(allocator: Allocator, dupe_hash: bool) !*Info {
             var iterator = std.mem.splitScalar(u8, value, ',');
 
             while (iterator.next()) |hash| {
-                try snapshots.append(allocator, try allocator.dupe(u8, hash));
+                if (!std.mem.eql(u8, hash, "EMPTY")) {
+                    try snapshots.append(allocator, try allocator.dupe(u8, hash));
+                }
             }
 
             info.SNAPSHOTS = try snapshots.toOwnedSlice(allocator);

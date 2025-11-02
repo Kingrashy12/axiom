@@ -44,7 +44,12 @@ pub fn main() !void {
     }).action(commands.snap).finalize();
 
     // ============= Restore Command =============
-    _ = cli.command("restore", "Restore files to the state of a previous snapshot.").action(commands.restore).finalize();
+    const restore_cmd = cli.command("restore", "Restore files to the state of a previous snapshot.").option(.{
+        .name = "clean",
+        .alias = "c",
+        .description = "Remove files created after the chosen snapshot so the working directory exactly matches that snapshot.",
+        .type = .bool,
+    }).action(commands.restore).finalize();
 
     // ============= Log Command =============
     _ = cli.command("log", "See snapshot history newest first.").action(commands.log).finalize();
@@ -55,5 +60,5 @@ pub fn main() !void {
     // ============= Drop Command =============
     _ = cli.command("drop", "Delete the repository.").action(commands.drop).finalize();
 
-    try cli.parse(args, &.{ config_cmd, snap_cmd });
+    try cli.parse(args, &.{ config_cmd, snap_cmd, restore_cmd });
 }

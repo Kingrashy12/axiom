@@ -9,3 +9,4 @@ README.md
 *.prev
 convert.zig
 INFO
+__tests__

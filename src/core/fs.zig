@@ -6,8 +6,10 @@ pub fn readIgnoreFile(
     allocator: std.mem.Allocator,
 ) ![][]const u8 {
     var file = std.fs.cwd().openFile(".axiomignore", .{}) catch {
-        // No ignore file; return empty list
-        return &[_][]const u8{};
+        const default_list = try allocator.alloc([]const u8, 1);
+        default_list[0] = try allocator.dupe(u8, ".axiom");
+        // No ignore file; return default list
+        return default_list;
     };
     defer file.close();
 
