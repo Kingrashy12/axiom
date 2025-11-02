@@ -18,6 +18,10 @@ pub fn status(param: ActionArg) !void {
     const info = try repo_mod.readInfo(allocator, true);
 
     defer {
+        for (info.SNAPSHOTS) |value| {
+            defer allocator.free(value);
+        }
+        allocator.free(info.SNAPSHOTS);
         allocator.free(info.CURRENT_SNAPSHOT_HASH);
         allocator.free(info.CURRENT_TIMELINE);
         allocator.free(info.PREVIOUS_SNAPSHOT_HASH);

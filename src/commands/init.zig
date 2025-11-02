@@ -28,7 +28,7 @@ pub fn init(params: ActionArg) !void {
         \\CURRENT_SNAPSHOT_HASH = EMPTY
         \\PREVIOUS_SNAPSHOT_HASH = EMPTY
         \\SNAPSHOTS = EMPTY
-        \\CURRENT_TIMELINE = main
+        \\CURRENT_TIMELINE = @main
     ;
 
     try info_file.writeAll(info_data);
