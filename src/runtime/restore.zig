@@ -107,23 +107,27 @@ pub fn restoreSnapshot(
             }
 
             // Ensure parent directories exist under tmp_snap_dir
-            const parent = std.fs.path.dirname(tmp_dst_path) orelse {
-                printColored(.yellow, "Warning: cannot determine parent for {s}\n", .{tmp_dst_path});
-                continue;
-            };
-            std.fs.cwd().makeDir(parent) catch |err| {
-                switch (err) {
-                    error.PathAlreadyExists => continue,
-                    else => {
-                        printColored(.yellow, "Warning: failed to make parent {s}: {s}\n", .{ parent, @errorName(err) });
-                    },
-                }
-            };
+            const parent = std.fs.path.dirname(tmp_dst_path);
+
+            if (parent) |dir| {
+                std.fs.cwd().makePath(dir) catch |err| {
+                    switch (err) {
+                        error.PathAlreadyExists => continue,
+                        else => {
+                            printColored(.yellow, "Warning: failed to make parent {s}: {s}\n", .{ dir, @errorName(err) });
+                        },
+                    }
+                };
+            }
 
             // Write object content to tmp path (truncate/create)
-            var tmp_file = try std.fs.cwd().createFile(tmp_dst_path, .{ .truncate = true });
+            var tmp_file = std.fs.cwd().createFile(tmp_dst_path, .{}) catch |err| {
+                printColored(.red, "Failed to write file: {s}\n", .{@errorName(err)});
+                continue;
+            };
             defer tmp_file.close();
-            tmp_file.writeAll(buffer) catch |err| {
+
+            _ = tmp_file.write(buffer) catch |err| {
                 printColored(.red, "Failed to write {s}: {s}\n", .{ tmp_dst_path, @errorName(err) });
                 continue;
             };
@@ -158,41 +162,36 @@ pub fn restoreSnapshot(
         defer allocator.free(dst_full);
 
         // Ensure parent dir exists in cwd
-        const dst_parent = std.fs.path.dirname(dst_full) orelse "";
+        const parent = std.fs.path.dirname(dst_full);
 
-        std.fs.cwd().makeDir(dst_parent) catch |err| {
-            switch (err) {
-                error.PathAlreadyExists => continue,
-                else => {
-                    printColored(.yellow, "Warning: failed to make parent {s}: {s}\n", .{ dst_parent, @errorName(err) });
-                },
-            }
-        };
-
-        // Try an atomic rename (tmp -> destination). If rename fails (cross-device), fall back to copy+remove.
-        const rename_err = std.fs.cwd().rename(tmp_full, dst_full) catch |err| err;
-        if (@TypeOf(rename_err) == void) {
-            printColored(.green, "Restored: {s}\n", .{rel_path});
-            continue;
-        } else {
-            // fallback: copy file contents then remove tmp
-            var src_file = try std.fs.cwd().openFile(tmp_full, .{});
-            defer src_file.close();
-            const sz = try src_file.getEndPos();
-            const tmp_buf = try allocator.alloc(u8, sz);
-            defer allocator.free(tmp_buf);
-            _ = try src_file.read(tmp_buf);
-
-            var dst_file = try std.fs.cwd().createFile(dst_full, .{ .truncate = true });
-            defer dst_file.close();
-            _ = try dst_file.writeAll(tmp_buf);
-
-            // remove tmp file
-            _ = std.fs.cwd().deleteFile(tmp_full) catch |err| {
-                printColored(.yellow, "Warning: failed to remove tmp file {s}: {s}\n", .{ tmp_full, @errorName(err) });
+        if (parent) |dir| {
+            std.fs.cwd().makePath(dir) catch |err| {
+                switch (err) {
+                    error.PathAlreadyExists => continue,
+                    else => {
+                        printColored(.yellow, "Warning: failed to make parent {s}: {s}\n", .{ dir, @errorName(err) });
+                    },
+                }
             };
-            printColored(.green, "Restored: {s}\n", .{rel_path});
         }
+
+        var src_file = try std.fs.cwd().openFile(tmp_full, .{});
+        defer src_file.close();
+        const sz = try src_file.getEndPos();
+        const tmp_buf = try allocator.alloc(u8, sz);
+        defer allocator.free(tmp_buf);
+        _ = try src_file.readAll(tmp_buf);
+
+        var dst_file = try std.fs.cwd().createFile(dst_full, .{ .truncate = true });
+        defer dst_file.close();
+        _ = try dst_file.writeAll(tmp_buf);
+
+        // remove tmp file
+        _ = std.fs.cwd().deleteFile(tmp_full) catch |err| {
+            printColored(.yellow, "Warning: failed to remove tmp file {s}: {s}\n", .{ tmp_full, @errorName(err) });
+        };
+        //     printColored(.green, "Restored: {s}\n", .{rel_path});
+        // }
     }
 
     // Cleanup: remove tmp snapshot dir
@@ -202,29 +201,25 @@ pub fn restoreSnapshot(
 
     // Write a log entry for this restore under .axiom/log/
     // Simple JSON file: { "type": "restore", "snapshot": "<hash>", "timestamp": <seconds>, "files": N }
-    const log_dir_path = ".axiom/log";
-    std.fs.cwd().makeDir(log_dir_path) catch |err| {
-        if (err != error.PathAlreadyExists) printColored(.yellow, "Warning: failed creating log dir: {s}\n", .{@errorName(err)});
-    };
 
-    const ts_ns = std.time.nanoTimestamp();
-    const ts_s = @divTrunc(ts_ns, std.time.ns_per_s);
-    const log_fname = try std.fmt.allocPrint(allocator, "restore-{s}-{d}.log", .{ hash_to_use, ts_s });
-    defer allocator.free(log_fname);
+    // const ts_ns = std.time.nanoTimestamp();
+    // const ts_s = @divTrunc(ts_ns, std.time.ns_per_s);
+    // const log_fname = try std.fmt.allocPrint(allocator, "restore-{s}-{d}.log", .{ hash_to_use, ts_s });
+    // defer allocator.free(log_fname);
 
-    const log_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ log_dir_path, log_fname });
-    defer allocator.free(log_path);
+    // const log_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ log_dir_path, log_fname });
+    // defer allocator.free(log_path);
 
-    var log_file = try std.fs.cwd().createFile(log_path, .{ .truncate = true });
-    defer log_file.close();
+    // var log_file = try std.fs.cwd().createFile(log_path, .{ .truncate = true });
+    // defer log_file.close();
 
-    const log_json = try std.fmt.allocPrint(allocator, "{{\"type\":\"restore\",\"snapshot\":\"{s}\",\"timestamp\":{d},\"files\":{d}}}", .{ hash_to_use, ts_s, restored_count });
-    defer allocator.free(log_json);
+    // const log_json = try std.fmt.allocPrint(allocator, "{{\"type\":\"restore\",\"snapshot\":\"{s}\",\"timestamp\":{d},\"files\":{d}}}", .{ hash_to_use, ts_s, restored_count });
+    // defer allocator.free(log_json);
 
-    _ = try log_file.writeAll(log_json);
+    // _ = try log_file.writeAll(log_json);
 
     printColored(.white, "\nSummary:\n", .{});
     printColored(.green, "  Restored {d} files\n", .{restored_count});
     printColored(.blue, "  From snapshot: {s}\n", .{hash_to_use});
-    printColored(.white, "  Log written: {s}\n", .{log_path});
+    // printColored(.white, "  Log written: {s}\n", .{log_path});
 }
