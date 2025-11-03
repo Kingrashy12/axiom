@@ -22,6 +22,7 @@ pub fn init(params: ActionArg) !void {
 
     try repo_dir.makeDir("objects");
     try repo_dir.makeDir("snapshots");
+    try repo_dir.makeDir("log");
     var info_file = try repo_dir.createFile("INFO", .{});
 
     const info_data =

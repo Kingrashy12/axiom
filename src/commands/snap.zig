@@ -104,7 +104,9 @@ pub fn snapshot(param: ActionArg) !void {
     var manifest_file = try std.fs.cwd().createFile(manifest_path, .{});
     defer manifest_file.close();
 
-    const timestamp_str = try std.fmt.allocPrint(allocator, "{}", .{std.time.timestamp()});
+    const timestamp = std.time.nanoTimestamp();
+
+    const timestamp_str = try std.fmt.allocPrint(allocator, "{}", .{timestamp});
     defer allocator.free(timestamp_str);
 
     try manifest_file.writeAll("{ \"timestamp\": ");
@@ -153,6 +155,24 @@ pub fn snapshot(param: ActionArg) !void {
         allocator.free(info.SNAPSHOTS);
         allocator.destroy(info);
     }
+
+    const log_entry = try std.fmt.allocPrint(
+        allocator,
+        "{{\"hash\": \"{s}\", \"timestamp\": {}, \"message\": \"{s}\", \"files_count\": {}}}",
+        .{ snap_hash, timestamp, message, current_files.len },
+    );
+    defer allocator.free(log_entry);
+
+    var log_dir = try dir.openDir(".axiom/log", .{ .iterate = true });
+    defer log_dir.close();
+
+    const log_path = std.mem.concat(allocator, u8, &.{ snap_hash, ".log" }) catch unreachable;
+    defer allocator.free(log_path);
+
+    var log_file = try log_dir.createFile(log_path, .{});
+    defer log_file.close();
+
+    _ = try log_file.writeAll(log_entry);
 
     printColored(.green, "Created snapshot: [{s}] {s}\n", .{ snap_hash, message });
 }
