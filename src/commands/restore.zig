@@ -55,8 +55,9 @@ pub fn restore(param: ActionArg) !void {
     defer obj_dir.close();
 
     const clean_opt = param.options.get("clean");
+    const dry_run = param.options.get("dry-run");
 
-    try restore_rt.restoreSnapshot(allocator, hash_to_use, &obj_dir, clean_opt);
+    try restore_rt.restoreSnapshot(allocator, hash_to_use, &obj_dir, clean_opt, dry_run);
 
     // std.debug.print("Restoring codebase to snapshot: {s}\n", .{hash_to_use});
 }

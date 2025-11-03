@@ -49,6 +49,11 @@ pub fn main() !void {
         .alias = "c",
         .description = "Remove files created after the chosen snapshot so the working directory exactly matches that snapshot.",
         .type = .bool,
+    }).option(.{
+        .name = "dry-run",
+        .alias = "d",
+        .description = "Simulate the restore without making changes; show which files would be removed or modified.",
+        .type = .bool,
     }).action(commands.restore).finalize();
 
     // ============= Log Command =============
