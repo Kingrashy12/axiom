@@ -190,8 +190,7 @@ pub fn restoreSnapshot(
         _ = std.fs.cwd().deleteFile(tmp_full) catch |err| {
             printColored(.yellow, "Warning: failed to remove tmp file {s}: {s}\n", .{ tmp_full, @errorName(err) });
         };
-        //     printColored(.green, "Restored: {s}\n", .{rel_path});
-        // }
+        // printColored(.green, "Restored: {s}\n", .{rel_path});
     }
 
     // Cleanup: remove tmp snapshot dir
@@ -200,26 +199,22 @@ pub fn restoreSnapshot(
     };
 
     // Write a log entry for this restore under .axiom/log/
-    // Simple JSON file: { "type": "restore", "snapshot": "<hash>", "timestamp": <seconds>, "files": N }
+    const ts_ns = std.time.nanoTimestamp();
+    const log = try std.fmt.allocPrint(allocator, "restore-{s}-{d}.log", .{ hash_to_use, ts_ns });
+    defer allocator.free(log);
 
-    // const ts_ns = std.time.nanoTimestamp();
-    // const ts_s = @divTrunc(ts_ns, std.time.ns_per_s);
-    // const log_fname = try std.fmt.allocPrint(allocator, "restore-{s}-{d}.log", .{ hash_to_use, ts_s });
-    // defer allocator.free(log_fname);
+    const log_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ ".axiom/log", log });
+    defer allocator.free(log_path);
 
-    // const log_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ log_dir_path, log_fname });
-    // defer allocator.free(log_path);
+    var log_file = try std.fs.cwd().createFile(log_path, .{ .truncate = true });
+    defer log_file.close();
 
-    // var log_file = try std.fs.cwd().createFile(log_path, .{ .truncate = true });
-    // defer log_file.close();
+    const log_json = try std.fmt.allocPrint(allocator, "{{\"type\":\"restore\",\"hash\":\"{s}\",\"timestamp\":{d},\"files_count\":{d}}}", .{ hash_to_use, ts_ns, restored_count });
+    defer allocator.free(log_json);
 
-    // const log_json = try std.fmt.allocPrint(allocator, "{{\"type\":\"restore\",\"snapshot\":\"{s}\",\"timestamp\":{d},\"files\":{d}}}", .{ hash_to_use, ts_s, restored_count });
-    // defer allocator.free(log_json);
-
-    // _ = try log_file.writeAll(log_json);
+    _ = try log_file.writeAll(log_json);
 
     printColored(.white, "\nSummary:\n", .{});
     printColored(.green, "  Restored {d} files\n", .{restored_count});
     printColored(.blue, "  From snapshot: {s}\n", .{hash_to_use});
-    // printColored(.white, "  Log written: {s}\n", .{log_path});
 }

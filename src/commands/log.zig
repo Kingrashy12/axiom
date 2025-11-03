@@ -33,7 +33,7 @@ pub fn log(param: ActionArg) !void {
 
     // Collect entries
     while (try it.next()) |entry| {
-        if (entry.kind != .file or !std.mem.endsWith(u8, entry.name, ".log")) continue;
+        if (entry.kind != .file or !std.mem.endsWith(u8, entry.name, ".log") or std.mem.startsWith(u8, entry.name, "restore")) continue;
 
         var file = try log_dir.openFile(entry.name, .{});
         defer file.close();
